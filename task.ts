@@ -245,7 +245,7 @@ export default class Task extends ETL {
             const env = await this.env(Env);
             console.log('ok - Starting avalanche data scraping');
 
-            const features: unknown[] = [];
+            const features: any[] = [];
 
             for (const regionId of VALID_REGIONS) {
                 const regionInfo = await this.getRegionInfo(regionId, env.Timeout);
