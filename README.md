@@ -1,4 +1,4 @@
-# ET-Avalanche
+# ETL-Avalanche
 
 <p align='center'>Avalanche risk data</p>
 
