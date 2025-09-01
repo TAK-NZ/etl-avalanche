@@ -88,7 +88,13 @@ export default class Task extends ETL {
                 return null;
             }
 
-            const data = await response.json() as any;
+            const data = await response.json() as {
+                id: number;
+                title: string;
+                latitude: number;
+                longitude: number;
+                geometry: string;
+            };
             return {
                 id: data.id,
                 title: data.title,
@@ -124,7 +130,14 @@ export default class Task extends ETL {
                 return null;
             }
 
-            const data = await response.json() as any;
+            const data = await response.json() as {
+                forecasts: {
+                    regionId: number;
+                    altitudeDanger: { rating: number; description: string }[];
+                    created: string;
+                    validPeriod: string;
+                }[];
+            };
             
             if (!data.forecasts || data.forecasts.length === 0) {
                 console.warn(`No forecasts available`);
@@ -132,7 +145,7 @@ export default class Task extends ETL {
             }
 
             // Filter forecasts for this region and get the most recent one
-            const regionForecasts = data.forecasts.filter((f: any) => f.regionId === regionId);
+            const regionForecasts = data.forecasts.filter(f => f.regionId === regionId);
             if (regionForecasts.length === 0) {
                 console.warn(`No forecasts available for region ${regionId}`);
                 return null;
@@ -156,7 +169,7 @@ export default class Task extends ETL {
 
             // Handle special case for insufficient snow
             if (maxRating === 0) {
-                const insufficientSnow = forecast.altitudeDanger?.find((a: any) => a.rating === -2);
+                const insufficientSnow = forecast.altitudeDanger?.find(a => a.rating === -2);
                 if (insufficientSnow) {
                     maxRating = 0;
                     ratingDescription = insufficientSnow.description;
@@ -232,7 +245,7 @@ export default class Task extends ETL {
             const env = await this.env(Env);
             console.log('ok - Starting avalanche data scraping');
 
-            const features: any[] = [];
+            const features: unknown[] = [];
 
             for (const regionId of VALID_REGIONS) {
                 const regionInfo = await this.getRegionInfo(regionId, env.Timeout);
@@ -261,7 +274,7 @@ export default class Task extends ETL {
                 }
 
                 const color = AVALANCHE_COLORS[data.level] || AVALANCHE_COLORS[0];
-                const baseProperties = {
+                const baseProperties: Record<string, unknown> = {
                     callsign: `${regionInfo.title} - ${data.levelText}`,
                     type: 'a-o-X-i-g-h',
                     time: startTime,
