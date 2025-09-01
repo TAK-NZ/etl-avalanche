@@ -216,6 +216,30 @@ export default class Task extends ETL {
         }
     }
 
+    private validateCoordinates(lat: number, lon: number): [number, number] {
+        // Ensure coordinates are in valid ranges and correct order
+        // GeoJSON format is [longitude, latitude]
+        
+        // If latitude is outside valid range, coordinates might be swapped
+        if (lat < -90 || lat > 90) {
+            // Try swapping
+            if (lon >= -90 && lon <= 90) {
+                return [lat, lon]; // lat becomes longitude, lon becomes latitude
+            }
+        }
+        
+        // If longitude is outside valid range, coordinates might be swapped  
+        if (lon < -180 || lon > 180) {
+            // Try swapping
+            if (lat >= -180 && lat <= 180) {
+                return [lon, lat]; // lon becomes longitude, lat becomes latitude
+            }
+        }
+        
+        // Normal case: return [longitude, latitude]
+        return [lon, lat];
+    }
+
     private formatNZDate(dateStr: string): string {
         try {
             const date = new Date(dateStr);
@@ -309,8 +333,7 @@ export default class Task extends ETL {
                         `Danger Level: ${data.levelText}`,
                         `Description: ${data.description}`,
                         `Issued: ${this.formatNZDate(data.start)}`,
-                        ...(data.expires ? [`Expires: ${this.formatNZDate(data.expires)}`] : []),
-                        `Source: ${data.url}`
+                        ...(data.expires ? [`Expires: ${this.formatNZDate(data.expires)}`] : [])
                     ].join('\n'),
                     links: [{
                         uid: `avalanche-${regionId}`,
@@ -352,7 +375,7 @@ export default class Task extends ETL {
                     },
                     geometry: {
                         type: 'Point',
-                        coordinates: [regionInfo.latitude, regionInfo.longitude]
+                        coordinates: this.validateCoordinates(regionInfo.latitude, regionInfo.longitude)
                     }
                 });
 
