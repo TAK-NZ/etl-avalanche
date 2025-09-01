@@ -330,24 +330,11 @@ export default class Task extends ETL {
 
             console.log(`ok - Generated ${features.length} avalanche forecast features`);
 
-            const fc = {
-                type: 'FeatureCollection' as const,
-                features
-            };
-
             await this.submit(fc);
             console.log(`ok - submitted avalanche forecast data`);
 
         } catch (error) {
             console.error('Error in avalanche ETL:', error);
-            throw error;
-        }
-    }
-}tched ${features.length} avalanche forecasts`);
-            await this.submit(fc);
-
-        } catch (error) {
-            console.error(`Error in avalanche ETL process: ${error instanceof Error ? error.message : String(error)}`);
             throw error;
         }
     }
