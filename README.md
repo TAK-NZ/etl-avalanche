@@ -1,6 +1,6 @@
 # ETL-Avalanche
 
-<p align='center'>Avalanche risk data</p>
+<p align='center'>NZ Avalanche Advisory (NZAA) risk data</p>
 
 ## Data Source
 
