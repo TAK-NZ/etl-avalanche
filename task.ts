@@ -1,7 +1,6 @@
-import { Static, Type, TSchema } from '@sinclair/typebox';
+import { Type, TSchema } from '@sinclair/typebox';
 import { fetch } from '@tak-ps/etl';
 import ETL, { Event, SchemaType, handler as internal, local, InvocationType, DataFlowType } from '@tak-ps/etl';
-import * as cheerio from 'cheerio';
 
 // Avalanche danger level icon mapping
 const AVALANCHE_ICONS: Record<number, string> = {

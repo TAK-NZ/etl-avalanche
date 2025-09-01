@@ -9,7 +9,7 @@
         "build": "tsc --build",
         "test": "exit 0"
     },
-    "author": "TAK-NZ Team",
+    "author": "Christian Elsen <chris@elsen.nz>",
     "license": "AGPL-3.0-only",
     "devDependencies": {
         "@types/geojson": "^7946.0.10",
