@@ -216,6 +216,23 @@ export default class Task extends ETL {
         }
     }
 
+    private formatNZDate(dateStr: string): string {
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleString('en-NZ', {
+                timeZone: 'Pacific/Auckland',
+                day: 'numeric',
+                month: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            }) + ' NZT';
+        } catch {
+            return dateStr;
+        }
+    }
+
     private parseDate(dateStr: string): string {
         try {
             // Try to parse various date formats
@@ -291,8 +308,9 @@ export default class Task extends ETL {
                         `Location: ${regionInfo.title}`,
                         `Danger Level: ${data.levelText}`,
                         `Description: ${data.description}`,
-                        `Issued: ${data.start}`,
-                        ...(data.expires ? [`Valid Until: ${data.expires}`] : [])
+                        `Issued: ${this.formatNZDate(data.start)}`,
+                        ...(data.expires ? [`Expires: ${this.formatNZDate(data.expires)}`] : []),
+                        `Source: ${data.url}`
                     ].join('\n'),
                     links: [{
                         uid: `avalanche-${regionId}`,
