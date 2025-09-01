@@ -328,7 +328,7 @@ export default class Task extends ETL {
                     },
                     geometry: {
                         type: 'Point',
-                        coordinates: [regionInfo.longitude, regionInfo.latitude]
+                        coordinates: [regionInfo.latitude, regionInfo.longitude]
                     }
                 });
 
@@ -352,7 +352,10 @@ export default class Task extends ETL {
     }
 }
 
-await local(new Task(import.meta.url), import.meta.url);
 export async function handler(event: Event = {}) {
     return await internal(new Task(import.meta.url), event);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+    await local(new Task(import.meta.url), import.meta.url);
 }
