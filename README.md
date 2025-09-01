@@ -24,6 +24,7 @@
 
 ## Example Data
 
+![Avalanche Risk Data](docs/etl-avalanche.png)
 
 ## Deployment
 
