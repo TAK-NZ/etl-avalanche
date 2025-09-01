@@ -136,6 +136,7 @@ export default class Task extends ETL {
                     altitudeDanger: { rating: number; description: string }[];
                     created: string;
                     validPeriod: string;
+                    importantInformation: string;
                 }[];
             };
             
@@ -181,11 +182,16 @@ export default class Task extends ETL {
             const validHours = forecast.validPeriod === '48hrs' ? 48 : 24;
             const expires = new Date(created.getTime() + validHours * 60 * 60 * 1000);
 
+            // Use important information if available, otherwise fall back to rating description
+            const description = forecast.importantInformation ? 
+                forecast.importantInformation.replace(/<[^>]*>/g, '').trim() : 
+                ratingDescription;
+
             return {
                 location: `Region ${regionId}`,
                 level: Math.max(0, maxRating), // Ensure non-negative
                 levelText: this.getDangerLevelText(maxRating),
-                description: ratingDescription,
+                description,
                 start: forecast.created,
                 expires: expires.toISOString(),
                 url: `https://www.avalanche.net.nz/region/${regionId}`
@@ -286,8 +292,7 @@ export default class Task extends ETL {
                         `Danger Level: ${data.levelText}`,
                         `Description: ${data.description}`,
                         `Issued: ${data.start}`,
-                        ...(data.expires ? [`Valid Until: ${data.expires}`] : []),
-                        `Source: ${data.url}`
+                        ...(data.expires ? [`Valid Until: ${data.expires}`] : [])
                     ].join('\n'),
                     links: [{
                         uid: `avalanche-${regionId}`,
