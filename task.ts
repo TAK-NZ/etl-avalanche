@@ -323,7 +323,7 @@ export default class Task extends ETL {
                 const color = AVALANCHE_COLORS[data.level] || AVALANCHE_COLORS[0];
                 const baseProperties: Record<string, unknown> = {
                     callsign: `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
-                    type: 'a-o-X-i-g-h',
+                    type: 'a-f-X-i-g-a',
                     time: startTime,
                     start: startTime,
                     stale: expiresTime,
