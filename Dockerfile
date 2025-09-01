@@ -1,13 +1,8 @@
-FROM node:20-alpine
+FROM public.ecr.aws/lambda/nodejs:20
 
-WORKDIR /app
+COPY . ${LAMBDA_TASK_ROOT}/
 
-COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install \
+    && npm run build
 
-COPY . .
-RUN npm run build
-
-EXPOSE 8080
-
-CMD ["node", "dist/task.js"]
+CMD ["dist/task.handler"]
