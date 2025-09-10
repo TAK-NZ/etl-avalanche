@@ -216,27 +216,57 @@ export default class Task extends ETL {
         }
     }
 
+    private calculatePolygonCentroid(coordinates: number[][][]): [number, number] {
+        const points = coordinates[0];
+        if (points.length < 3) {
+            return [0, 0];
+        }
+        
+        let area = 0;
+        let cx = 0;
+        let cy = 0;
+        
+        for (let i = 0; i < points.length - 1; i++) {
+            const x0 = points[i][0];
+            const y0 = points[i][1];
+            const x1 = points[i + 1][0];
+            const y1 = points[i + 1][1];
+            
+            const a = x0 * y1 - x1 * y0;
+            area += a;
+            cx += (x0 + x1) * a;
+            cy += (y0 + y1) * a;
+        }
+        
+        area *= 0.5;
+        if (Math.abs(area) < 1e-10) {
+            let x = 0, y = 0;
+            for (const point of points) {
+                x += point[0];
+                y += point[1];
+            }
+            return [x / points.length, y / points.length];
+        }
+        
+        cx /= (6 * area);
+        cy /= (6 * area);
+        
+        return [cx, cy];
+    }
+
     private validateCoordinates(lat: number, lon: number): [number, number] {
-        // Ensure coordinates are in valid ranges and correct order
-        // GeoJSON format is [longitude, latitude]
-        
-        // If latitude is outside valid range, coordinates might be swapped
         if (lat < -90 || lat > 90) {
-            // Try swapping
             if (lon >= -90 && lon <= 90) {
-                return [lat, lon]; // lat becomes longitude, lon becomes latitude
+                return [lat, lon];
             }
         }
         
-        // If longitude is outside valid range, coordinates might be swapped  
         if (lon < -180 || lon > 180) {
-            // Try swapping
             if (lat >= -180 && lat <= 180) {
-                return [lon, lat]; // lon becomes longitude, lat becomes latitude
+                return [lon, lat];
             }
         }
         
-        // Normal case: return [longitude, latitude]
         return [lon, lat];
     }
 
@@ -371,6 +401,10 @@ export default class Task extends ETL {
                 }
 
                 // Add center point with icon
+                const centerCoords = polygonCoordinates ? 
+                    this.calculatePolygonCentroid(polygonCoordinates) :
+                    this.validateCoordinates(regionInfo.latitude, regionInfo.longitude);
+                    
                 features.push({
                     id: `avalanche-${regionId}-center`,
                     type: 'Feature',
@@ -380,7 +414,7 @@ export default class Task extends ETL {
                     },
                     geometry: {
                         type: 'Point',
-                        coordinates: this.validateCoordinates(regionInfo.latitude, regionInfo.longitude)
+                        coordinates: centerCoords
                     }
                 });
 
