@@ -38,6 +38,30 @@ const Env = Type.Object({
     })
 });
 
+const AvalancheProperties = Type.Object({
+    dangerLevel: Type.Number({
+        description: 'Avalanche danger level (0-5)'
+    }),
+    dangerLevelText: Type.String({
+        description: 'Human readable danger level'
+    }),
+    region: Type.String({
+        description: 'Avalanche region name'
+    }),
+    regionId: Type.Number({
+        description: 'Avalanche region ID'
+    }),
+    description: Type.String({
+        description: 'Forecast description'
+    }),
+    issued: Type.String({
+        description: 'Forecast issue time'
+    }),
+    expires: Type.Optional(Type.String({
+        description: 'Forecast expiry time'
+    }))
+});
+
 interface AvalancheData {
     location: string;
     level: number;
@@ -61,7 +85,7 @@ export default class Task extends ETL {
             if (type === SchemaType.Input) {
                 return Env;
             } else {
-                return Type.Object({});
+                return AvalancheProperties;
             }
         } else {
             return Type.Object({});
@@ -362,6 +386,13 @@ export default class Task extends ETL {
                     time: startTime,
                     start: startTime,
                     stale: expiresTime,
+                    dangerLevel: data.level,
+                    dangerLevelText: data.levelText,
+                    region: regionInfo.title,
+                    regionId: regionId,
+                    description: data.description,
+                    issued: data.start,
+                    expires: data.expires,
                     remarks: [
                         `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
                         `Location: ${regionInfo.title}`,
@@ -427,6 +458,11 @@ export default class Task extends ETL {
             };
 
             console.log(`ok - Generated ${features.length} avalanche forecast features`);
+            
+            // Debug: Log first feature properties
+            if (features.length > 0) {
+                console.log('Sample feature properties:', JSON.stringify(features[0].properties, null, 2));
+            }
 
             await this.submit(fc);
             console.log(`ok - submitted avalanche forecast data`);
