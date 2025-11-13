@@ -393,6 +393,15 @@ export default class Task extends ETL {
                     description: data.description,
                     issued: data.start,
                     expires: data.expires,
+                    metadata: {
+                        dangerLevel: data.level,
+                        dangerLevelText: data.levelText,
+                        region: regionInfo.title,
+                        regionId: regionId,
+                        description: data.description,
+                        issued: data.start,
+                        expires: data.expires
+                    },
                     remarks: [
                         `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
                         `Location: ${regionInfo.title}`,
@@ -458,11 +467,6 @@ export default class Task extends ETL {
             };
 
             console.log(`ok - Generated ${features.length} avalanche forecast features`);
-            
-            // Debug: Log first feature properties
-            if (features.length > 0) {
-                console.log('Sample feature properties:', JSON.stringify(features[0].properties, null, 2));
-            }
 
             await this.submit(fc);
             console.log(`ok - submitted avalanche forecast data`);
