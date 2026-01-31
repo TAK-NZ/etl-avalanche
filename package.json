@@ -22,5 +22,8 @@
         "@sinclair/typebox": "^0.34.0",
         "@tak-ps/etl": "^9.22.0",
         "cheerio": "^1.0.0-rc.12"
+    },
+    "overrides": {
+        "fast-xml-parser": "5.3.4"
     }
 }
