@@ -450,7 +450,14 @@ export default class Task extends ETL {
                     type: 'Feature',
                     properties: {
                         ...baseProperties,
-                        icon: AVALANCHE_ICONS[data.level] || AVALANCHE_ICONS[0]
+                        icon: AVALANCHE_ICONS[data.level] || AVALANCHE_ICONS[0],
+                        links: [{
+                            uid: `avalanche-${regionId}-center`,
+                            relation: 'r-u',
+                            mime: 'text/html',
+                            url: data.url,
+                            remarks: 'Avalanche Forecast Details'
+                        }]
                     },
                     geometry: {
                         type: 'Point',
