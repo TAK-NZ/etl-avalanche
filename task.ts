@@ -362,8 +362,14 @@ export default class Task extends ETL {
                     continue;
                 }
 
-                const startTime = this.parseDate(data.start);
-                const expiresTime = data.expires ? this.parseDate(data.expires) : undefined;
+                // Use ETL run time for CoT time/start, and now+24h for stale.
+                // The upstream forecast's created timestamp may be many hours old, which
+                // would produce a stale value already in the past and cause ATAK to show
+                // items as expired. The ETL runs on a schedule so stale just needs to
+                // outlive the interval between runs.
+                const now = new Date();
+                const cotTime = now.toISOString();
+                const cotStale = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
                 // Parse region geometry
                 let polygonCoordinates: number[][][] | null = null;
@@ -383,9 +389,9 @@ export default class Task extends ETL {
                 const baseProperties: Record<string, unknown> = {
                     callsign: `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
                     type: 'a-f-X-i-g-a',
-                    time: startTime,
-                    start: startTime,
-                    stale: expiresTime,
+                    time: cotTime,
+                    start: cotTime,
+                    stale: cotStale,
                     dangerLevel: data.level,
                     dangerLevelText: data.levelText,
                     region: regionInfo.title,
