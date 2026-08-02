@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8]
+
+### Fixed
+- `issuedUTC` now correctly parses the upstream API's naive NZ local
+  timestamps and emits proper ISO 8601 UTC strings (with `T`/`Z`), instead
+  of passing the raw non-ISO string straight through
+- Reordered `remarks` timestamp lines to show NZ local time before UTC
+
 ## [1.0.0] - 2024-12-19
 
 ### Added

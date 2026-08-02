@@ -69,6 +69,43 @@ function formatRelativeTime(target: Date, reference: Date): string {
     return isPast ? `${label} ago` : `in ${label}`;
 }
 
+const NZ_LONG_OFFSET_FORMAT = new Intl.DateTimeFormat('en-NZ', {
+    timeZone: 'Pacific/Auckland',
+    timeZoneName: 'longOffset'
+});
+
+/** Returns the Pacific/Auckland UTC offset, in minutes, at the given instant. */
+function getAucklandOffsetMinutes(date: Date): number {
+    const offsetPart = NZ_LONG_OFFSET_FORMAT.formatToParts(date)
+        .find((part) => part.type === 'timeZoneName')?.value ?? 'GMT+12:00';
+    const match = offsetPart.match(/GMT([+-])(\d{2}):(\d{2})/);
+    if (!match) return 12 * 60;
+    const [, sign, hours, minutes] = match;
+    return (sign === '-' ? -1 : 1) * (Number(hours) * 60 + Number(minutes));
+}
+
+/**
+ * Parses the upstream API's naive `YYYY-MM-DD HH:MM:SS` timestamps (no
+ * timezone designator, confirmed to be NZ local time, not UTC) into a
+ * correct UTC `Date`. Resolves the NZST/NZDT offset via `Intl.DateTimeFormat`
+ * rather than a hardcoded +12/+13, so it stays correct across DST transitions.
+ */
+function parseNZNaiveDateTime(naiveStr: string): Date {
+    const match = naiveStr.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (!match) return new Date(naiveStr);
+    const [, year, month, day, hour, minute, second] = match;
+    const naiveUtcMs = Date.UTC(
+        Number(year), Number(month) - 1, Number(day),
+        Number(hour), Number(minute), Number(second)
+    );
+    // Resolve offset using the naive instant, then re-resolve using the
+    // corrected instant to handle the (rare) case where the naive time
+    // falls right on a DST boundary.
+    const offset1 = getAucklandOffsetMinutes(new Date(naiveUtcMs));
+    const offset2 = getAucklandOffsetMinutes(new Date(naiveUtcMs - offset1 * 60000));
+    return new Date(naiveUtcMs - offset2 * 60000);
+}
+
 /**
  * Formats an ISO 8601 UTC timestamp as NZ local time, human formatted:
  * `DD/MM/YYYY, HH:mm <NZST|NZDT> (<relative time>)`
@@ -267,8 +304,10 @@ export default class Task extends ETL {
                 }
             }
 
-            // Calculate expiry time
-            const created = new Date(forecast.created);
+            // `forecast.created` is a naive NZ local timestamp (no timezone
+            // designator) - convert it to a proper UTC instant before doing
+            // any arithmetic or exposing it as an ISO 8601 UTC string.
+            const created = parseNZNaiveDateTime(forecast.created);
             const validHours = forecast.validPeriod === '48hrs' ? 48 : 24;
             const expires = new Date(created.getTime() + validHours * 60 * 60 * 1000);
 
@@ -282,7 +321,7 @@ export default class Task extends ETL {
                 level: Math.max(0, maxRating), // Ensure non-negative
                 levelText: this.getDangerLevelText(maxRating),
                 description,
-                start: forecast.created,
+                start: created.toISOString(),
                 expires: expires.toISOString(),
                 url: `https://www.avalanche.net.nz/region/${regionId}`
             };
@@ -474,10 +513,10 @@ export default class Task extends ETL {
                         `Location: ${regionInfo.title}`,
                         `Danger Level: ${data.levelText}`,
                         `Description: ${data.description}`,
-                        `Issued (UTC): ${issuedUTC}`,
                         `Issued (NZ): ${issuedLocal}`,
-                        ...(expiresUTC ? [`Expires (UTC): ${expiresUTC}`] : []),
-                        ...(expiresLocal ? [`Expires (NZ): ${expiresLocal}`] : [])
+                        ...(expiresLocal ? [`Expires (NZ): ${expiresLocal}`] : []),
+                        `Issued (UTC): ${issuedUTC}`,
+                        ...(expiresUTC ? [`Expires (UTC): ${expiresUTC}`] : [])
                     ].join('\n'),
                     links: [{
                         uid: `avalanche-${regionId}`,
