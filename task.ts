@@ -450,14 +450,11 @@ export default class Task extends ETL {
                     continue;
                 }
 
-                // Use ETL run time for CoT time/start, and now+24h for stale.
-                // The upstream forecast's created timestamp may be many hours old, which
-                // would produce a stale value already in the past and cause ATAK to show
-                // items as expired. The ETL runs on a schedule so stale just needs to
-                // outlive the interval between runs.
+                // CoT `time` stays as the ETL run time. `start`/`stale` are
+                // derived from the forecast's issued/expires times below,
+                // once those are available.
                 const now = new Date();
                 const cotTime = now.toISOString();
-                const cotStale = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
                 // Parse region geometry
                 let polygonCoordinates: number[][][] | null = null;
@@ -482,11 +479,22 @@ export default class Task extends ETL {
                 const expiresUTC = data.expires || undefined;
                 const expiresLocal = data.expires ? formatNZLocal(data.expires, now) : undefined;
 
+                // CoT start = forecast issued time. CoT stale = forecast expiry
+                // time, unless that's already in the past (the upstream
+                // forecast can be stale by the time we fetch it), in which
+                // case fall back to now+24h so ATAK doesn't show it as
+                // expired immediately on receipt.
+                const cotStart = issuedUTC;
+                const expiresDate = expiresUTC ? new Date(expiresUTC) : null;
+                const cotStale = expiresDate && expiresDate.getTime() > now.getTime() ?
+                    expiresUTC as string :
+                    new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
                 const baseProperties: Record<string, unknown> = {
                     callsign: `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
                     type: 'a-f-X-i-g-a',
                     time: cotTime,
-                    start: cotTime,
+                    start: cotStart,
                     stale: cotStale,
                     dangerLevel: data.level,
                     dangerLevelText: data.levelText,
