@@ -23,6 +23,66 @@ const AVALANCHE_COLORS: Record<number, string> = {
 
 const VALID_REGIONS = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15];
 
+// NZ timezone formatters. `timeZone: 'Pacific/Auckland'` handles the NZST/NZDT
+// daylight saving transition automatically - do not hardcode a +12/+13 offset.
+const NZ_DATE_FORMAT = new Intl.DateTimeFormat('en-NZ', {
+    timeZone: 'Pacific/Auckland',
+    day: '2-digit', month: '2-digit', year: 'numeric'
+});
+const NZ_TIME_FORMAT = new Intl.DateTimeFormat('en-NZ', {
+    timeZone: 'Pacific/Auckland',
+    hour: '2-digit', minute: '2-digit', hour12: false
+});
+const NZ_TZ_NAME_FORMAT = new Intl.DateTimeFormat('en-NZ', {
+    timeZone: 'Pacific/Auckland',
+    timeZoneName: 'short'
+});
+
+/**
+ * Floored relative time between `target` and `reference`, e.g. "3 hours ago"
+ * or "in 2 days". Uses floor (not round) so an event doesn't jump to the next
+ * unit a few seconds after crossing the boundary.
+ */
+function formatRelativeTime(target: Date, reference: Date): string {
+    const diffMs = reference.getTime() - target.getTime();
+    const isPast = diffMs >= 0;
+    const absMs = Math.abs(diffMs);
+
+    const minutes = Math.floor(absMs / (60 * 1000));
+    const hours = Math.floor(absMs / (60 * 60 * 1000));
+    const days = Math.floor(absMs / (24 * 60 * 60 * 1000));
+
+    let value: number;
+    let unit: string;
+    if (hours < 1) {
+        value = minutes;
+        unit = 'minute';
+    } else if (hours < 24) {
+        value = hours;
+        unit = 'hour';
+    } else {
+        value = days;
+        unit = 'day';
+    }
+
+    const label = `${value} ${unit}${value === 1 ? '' : 's'}`;
+    return isPast ? `${label} ago` : `in ${label}`;
+}
+
+/**
+ * Formats an ISO 8601 UTC timestamp as NZ local time, human formatted:
+ * `DD/MM/YYYY, HH:mm <NZST|NZDT> (<relative time>)`
+ */
+function formatNZLocal(isoString: string, reference: Date): string {
+    const date = new Date(isoString);
+    const datePart = NZ_DATE_FORMAT.format(date);
+    const timePart = NZ_TIME_FORMAT.format(date);
+    const tzPart = NZ_TZ_NAME_FORMAT.formatToParts(date)
+        .find((part) => part.type === 'timeZoneName')?.value ?? '';
+    const relative = formatRelativeTime(date, reference);
+    return `${datePart}, ${timePart} ${tzPart} (${relative})`;
+}
+
 interface RegionInfo {
     id: number;
     title: string;
@@ -54,11 +114,17 @@ const AvalancheProperties = Type.Object({
     description: Type.String({
         description: 'Forecast description'
     }),
-    issued: Type.String({
-        description: 'Forecast issue time'
+    issuedUTC: Type.String({
+        description: 'Forecast issue time, raw ISO 8601 UTC string'
     }),
-    expires: Type.Optional(Type.String({
-        description: 'Forecast expiry time'
+    issuedLocal: Type.String({
+        description: 'Forecast issue time, NZ local time, human formatted'
+    }),
+    expiresUTC: Type.Optional(Type.String({
+        description: 'Forecast expiry time, raw ISO 8601 UTC string'
+    })),
+    expiresLocal: Type.Optional(Type.String({
+        description: 'Forecast expiry time, NZ local time, human formatted'
     }))
 });
 
@@ -294,23 +360,6 @@ export default class Task extends ETL {
         return [lon, lat];
     }
 
-    private formatNZDate(dateStr: string): string {
-        try {
-            const date = new Date(dateStr);
-            return date.toLocaleString('en-NZ', {
-                timeZone: 'Pacific/Auckland',
-                day: 'numeric',
-                month: 'numeric', 
-                year: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            }) + ' NZT';
-        } catch {
-            return dateStr;
-        }
-    }
-
     private parseDate(dateStr: string): string {
         try {
             // Try to parse various date formats
@@ -386,6 +435,14 @@ export default class Task extends ETL {
                 }
 
                 const color = AVALANCHE_COLORS[data.level] || AVALANCHE_COLORS[0];
+
+                // issued/expires: raw UTC ISO strings unmodified, plus NZ local
+                // human-formatted equivalents (relative time computed against now).
+                const issuedUTC = data.start;
+                const issuedLocal = formatNZLocal(data.start, now);
+                const expiresUTC = data.expires || undefined;
+                const expiresLocal = data.expires ? formatNZLocal(data.expires, now) : undefined;
+
                 const baseProperties: Record<string, unknown> = {
                     callsign: `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
                     type: 'a-f-X-i-g-a',
@@ -397,24 +454,30 @@ export default class Task extends ETL {
                     region: regionInfo.title,
                     regionId: regionId,
                     description: data.description,
-                    issued: data.start,
-                    expires: data.expires,
+                    issuedUTC,
+                    issuedLocal,
+                    ...(expiresUTC ? { expiresUTC } : {}),
+                    ...(expiresLocal ? { expiresLocal } : {}),
                     metadata: {
                         dangerLevel: data.level,
                         dangerLevelText: data.levelText,
                         region: regionInfo.title,
                         regionId: regionId,
                         description: data.description,
-                        issued: data.start,
-                        expires: data.expires
+                        issuedUTC,
+                        issuedLocal,
+                        ...(expiresUTC ? { expiresUTC } : {}),
+                        ...(expiresLocal ? { expiresLocal } : {})
                     },
                     remarks: [
                         `Avalanche Risk: ${regionInfo.title} - ${data.levelText}`,
                         `Location: ${regionInfo.title}`,
                         `Danger Level: ${data.levelText}`,
                         `Description: ${data.description}`,
-                        `Issued: ${this.formatNZDate(data.start)}`,
-                        ...(data.expires ? [`Expires: ${this.formatNZDate(data.expires)}`] : [])
+                        `Issued (UTC): ${issuedUTC}`,
+                        `Issued (NZ): ${issuedLocal}`,
+                        ...(expiresUTC ? [`Expires (UTC): ${expiresUTC}`] : []),
+                        ...(expiresLocal ? [`Expires (NZ): ${expiresLocal}`] : [])
                     ].join('\n'),
                     links: [{
                         uid: `avalanche-${regionId}`,
