@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.9]
+
+### Changed
+- CoT `start` now uses the forecast's issued time (UTC) instead of the
+  ETL run time
+- CoT `stale` now uses the forecast's expiry time (UTC) instead of a
+  fixed now+24h, unless the forecast is already expired by the time
+  it's fetched, in which case it falls back to now+24h
+
 ## [1.0.8]
 
 ### Fixed
