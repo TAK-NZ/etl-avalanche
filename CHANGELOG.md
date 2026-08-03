@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1]
+
+### Changed
+- CoT `time` reverted to the ETL run time. TAK Server unconditionally
+  overwrites the CoT `time` attribute with its own ingestion time on
+  every submitted message (confirmed in TAK Server's
+  `SubmissionService.setServerTime()`), so setting it to the
+  forecast's last-edited time had no effect once delivered
+- `issuedLocal`/`expiresLocal` relative time suffix (e.g.
+  `(3 hours ago)`) restored
+
 ## [1.1.0]
 
 ### Changed
