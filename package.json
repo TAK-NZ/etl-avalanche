@@ -1,7 +1,7 @@
 {
     "name": "etl-avalanche",
     "type": "module",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "ETL to bring avalanche risk data from avalanche.net.nz into the TAK",
     "main": "index.js",
     "scripts": {

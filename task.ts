@@ -76,16 +76,48 @@ function parseNZNaiveDateTime(naiveStr: string): Date {
 }
 
 /**
- * Formats an ISO 8601 UTC timestamp as NZ local time, human formatted:
- * `DD/MM/YYYY, HH:mm <NZST|NZDT>`
+ * Floored relative time between `target` and `reference`, e.g. "3 hours ago"
+ * or "in 2 days". Uses floor (not round) so an event doesn't jump to the next
+ * unit a few seconds after crossing the boundary.
  */
-function formatNZLocal(isoString: string): string {
+function formatRelativeTime(target: Date, reference: Date): string {
+    const diffMs = reference.getTime() - target.getTime();
+    const isPast = diffMs >= 0;
+    const absMs = Math.abs(diffMs);
+
+    const minutes = Math.floor(absMs / (60 * 1000));
+    const hours = Math.floor(absMs / (60 * 60 * 1000));
+    const days = Math.floor(absMs / (24 * 60 * 60 * 1000));
+
+    let value: number;
+    let unit: string;
+    if (hours < 1) {
+        value = minutes;
+        unit = 'minute';
+    } else if (hours < 24) {
+        value = hours;
+        unit = 'hour';
+    } else {
+        value = days;
+        unit = 'day';
+    }
+
+    const label = `${value} ${unit}${value === 1 ? '' : 's'}`;
+    return isPast ? `${label} ago` : `in ${label}`;
+}
+
+/**
+ * Formats an ISO 8601 UTC timestamp as NZ local time, human formatted:
+ * `DD/MM/YYYY, HH:mm <NZST|NZDT> (<relative time>)`
+ */
+function formatNZLocal(isoString: string, reference: Date): string {
     const date = new Date(isoString);
     const datePart = NZ_DATE_FORMAT.format(date);
     const timePart = NZ_TIME_FORMAT.format(date);
     const tzPart = NZ_TZ_NAME_FORMAT.formatToParts(date)
         .find((part) => part.type === 'timeZoneName')?.value ?? '';
-    return `${datePart}, ${timePart} ${tzPart}`;
+    const relative = formatRelativeTime(date, reference);
+    return `${datePart}, ${timePart} ${tzPart} (${relative})`;
 }
 
 /**
@@ -158,7 +190,6 @@ interface AvalancheData {
     level: number;
     levelText: string;
     description: string;
-    lastEdited: string;
     start: string;
     expires: string;
     url: string;
@@ -251,7 +282,6 @@ export default class Task extends ETL {
                     regionId: number;
                     altitudeDanger: { rating: number; description: string }[];
                     created: string;
-                    lastEdited: string;
                     validPeriod: string;
                     importantInformation: string;
                 }[];
@@ -294,14 +324,12 @@ export default class Task extends ETL {
                 }
             }
 
-            // `forecast.created`/`forecast.lastEdited` are naive NZ local
-            // timestamps (no timezone designator) - convert to a proper UTC
-            // instant before doing any arithmetic or exposing them as ISO
-            // 8601 UTC strings. `expires` (validity end) is anchored on
-            // `created`, matching the source website's own "Valid until"
-            // display, not on `lastEdited`.
+            // `forecast.created` is a naive NZ local timestamp (no timezone
+            // designator) - convert to a proper UTC instant before doing any
+            // arithmetic or exposing it as an ISO 8601 UTC string. `expires`
+            // (validity end) is anchored on `created`, matching the source
+            // website's own "Valid until" display.
             const created = parseNZNaiveDateTime(forecast.created);
-            const lastEdited = parseNZNaiveDateTime(forecast.lastEdited);
             const validHours = forecast.validPeriod === '48hrs' ? 48 : 24;
             const expires = new Date(created.getTime() + validHours * 60 * 60 * 1000);
 
@@ -315,7 +343,6 @@ export default class Task extends ETL {
                 level: Math.max(0, maxRating), // Ensure non-negative
                 levelText: this.getDangerLevelText(maxRating),
                 description,
-                lastEdited: lastEdited.toISOString(),
                 start: created.toISOString(),
                 expires: expires.toISOString(),
                 url: `https://www.avalanche.net.nz/region/${regionId}`
@@ -467,22 +494,26 @@ export default class Task extends ETL {
                 // values, never adjusted for CoT display purposes), plus NZ
                 // local human-formatted equivalents.
                 const issuedUTC = data.start;
-                const issuedLocal = formatNZLocal(data.start);
+                const issuedLocal = formatNZLocal(data.start, now);
                 const expiresUTC = data.expires || undefined;
-                const expiresLocal = data.expires ? formatNZLocal(data.expires) : undefined;
-                const lastEditedUTC = data.lastEdited;
+                const expiresLocal = data.expires ? formatNZLocal(data.expires, now) : undefined;
 
                 const expiresDate = expiresUTC ? new Date(expiresUTC) : null;
                 const expired = !!expiresDate && expiresDate.getTime() <= now.getTime();
 
-                // CoT time = forecast last-edited time. CoT start = forecast
-                // issued (created) time. CoT stale = forecast's true expiry
-                // time, unless that's already in the past (the upstream
-                // forecast can already be expired by the time we fetch it) -
-                // in that case, step forward in 24h increments from the true
-                // expiry so the value only changes once per day rather than
-                // on every ETL run.
-                const cotTime = lastEditedUTC;
+                // CoT time = ETL run time. TAK Server unconditionally
+                // overwrites the CoT `time` attribute with its own
+                // ingestion-time on every submitted message
+                // (SubmissionService.setServerTime()), so setting it to
+                // anything else here has no effect once delivered - keep it
+                // simple and just use `now`. CoT start = forecast issued
+                // (created) time. CoT stale = forecast's true expiry time,
+                // unless that's already in the past (the upstream forecast
+                // can already be expired by the time we fetch it) - in that
+                // case, step forward in 24h increments from the true expiry
+                // so the value only changes once per day rather than on
+                // every ETL run.
+                const cotTime = now.toISOString();
                 const cotStart = issuedUTC;
                 const cotStale = expiresDate && !expired ?
                     expiresUTC as string :
