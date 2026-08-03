@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0]
+
+### Changed
+- CoT `time` now uses the forecast's last-edited time (UTC) instead of
+  the ETL run time
+- CoT `stale` fallback for already-expired forecasts now steps forward
+  from the true expiry time in fixed 24h increments, instead of
+  `now + 24h`, so the value only changes once per day rather than on
+  every ETL run
+- `issuedLocal`/`expiresLocal` no longer include the relative time
+  suffix (e.g. `(3 hours ago)`)
+
+### Added
+- `expired` boolean field (top-level properties and `metadata`),
+  reflecting whether the forecast's true expiry time has already
+  passed
+- `Report has expired` line in `remarks` when `expired` is true
+
 ## [1.0.9]
 
 ### Changed
