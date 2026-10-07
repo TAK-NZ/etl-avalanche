@@ -1,0 +1,27 @@
+{
+    "version": "1.0",
+    "name": "NZ Avalanche Risk Forecasts",
+    "description": "Ingests avalanche danger forecasts from avalanche.net.nz for New Zealand avalanche regions and submits them to CloudTAK as CoT features.",
+    "compute": {
+        "memory": 1024,
+        "timeout": 120
+    },
+    "permissions": [
+        {
+            "resource": "feature:*",
+            "required": true,
+            "description": "Submits avalanche forecast risk features for NZ avalanche regions"
+        }
+    ],
+    "invocations": {
+        "incoming": {
+            "schedule": {
+                "description": "Polls avalanche.net.nz for the latest forecast per NZ avalanche region and submits them as CoT features",
+                "default": {
+                    "enabled": true,
+                    "schedule": "rate(1 minute)"
+                }
+            }
+        }
+    }
+}
