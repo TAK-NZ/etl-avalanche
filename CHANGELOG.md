@@ -25,6 +25,14 @@ All notable changes to this project will be documented in this file.
 - Updated dependencies (`@tak-ps/etl` ^10.9.0 -> ^10.22.1, plus other
   `devDependencies`/transitive updates via `npm update`), resolving all
   `npm audit` findings
+- Update GitHub Actions to releases that run on Node.js 24, clearing the
+  Node.js 20 deprecation warnings: `actions/checkout` v7, `actions/setup-node`
+  v7, `aws-actions/configure-aws-credentials` v6 and
+  `docker/setup-buildx-action` v4. `aws-actions/amazon-ecr-login` v2 already
+  runs on Node.js 24. Not yet run in CI on these versions
+- Pin the workflow runners to `ubuntu-24.04` instead of `ubuntu-latest`, so
+  the `ubuntu-latest` migration to Ubuntu 26 (starting October 19, 2026) does
+  not change the build environment unannounced
 - Add a .dockerignore so .git, .github, node_modules, dist, test, docs, .agents, .env*, and markdown files are kept out of the image build context
 
 ## [1.1.1]
