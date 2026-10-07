@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - Updated dependencies (`@tak-ps/etl` ^10.9.0 -> ^10.22.1, plus other
   `devDependencies`/transitive updates via `npm update`), resolving all
   `npm audit` findings
+- Add a .dockerignore so .git, .github, node_modules, dist, test, docs, .agents, .env*, and markdown files are kept out of the image build context
 
 ## [1.1.1]
 
