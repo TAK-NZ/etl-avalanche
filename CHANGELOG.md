@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0]
+
+### Added
+- `capabilities.json` manifest describing the task's compute requirements,
+  permissions, and schedule invocation, embedded in the published Docker
+  image as the `com.cloudtak.capabilities` OCI annotation so CloudTAK can
+  read it directly from ECR
+- Basic test suite (`test/basic.test.ts`) covering `Task`'s static config
+  and input/output schemas, run via `tsx --test`
+
+### Changed
+- CI (`etl-deploy.yml`) now builds and pushes the Docker image with a single
+  `docker buildx build` step embedding the capabilities manifest, instead of
+  separate `docker build`/`tag`/`push` steps; the ECR CloudFormation-export
+  lookup is unchanged
+- `build-and-validate` job in `etl-deploy.yml` now runs on Node 24 (was 18),
+  matching `lint.yml` and the Lambda runtime
+- `task.ts` entry points (`handler` and the local-dev guard) now use
+  `await Task.init(...)` instead of `new Task(...)`
+- Added `engines.node: >= 24` to `package.json`
+- Updated dependencies (`@tak-ps/etl` ^10.9.0 -> ^10.22.1, plus other
+  `devDependencies`/transitive updates via `npm update`), resolving all
+  `npm audit` findings
+
 ## [1.1.1]
 
 ### Changed
