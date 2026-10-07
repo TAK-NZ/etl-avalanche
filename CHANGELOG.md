@@ -33,6 +33,7 @@ All notable changes to this project will be documented in this file.
 - Pin the workflow runners to `ubuntu-24.04` instead of `ubuntu-latest`, so
   the `ubuntu-latest` migration to Ubuntu 26 (starting October 19, 2026) does
   not change the build environment unannounced
+- Add a .dockerignore so .git, .github, node_modules, dist, test, docs, .agents, .env*, and markdown files are kept out of the image build context
 
 ## [1.1.1]
 
