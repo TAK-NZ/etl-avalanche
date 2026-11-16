@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2]
+
+### Changed
+
+- Region features now use the UID `avalanche-region-<id>` instead of
+  `avalanche-<id>`. ATAK ignores a marker update for a UID it already holds as
+  a non-Marker item, so devices that received the old `u-d-f` polygon never
+  applied the 1.3.0 marker CoTs
+- Polygon vertices are sent as lon/lat only. They previously carried a `0`
+  altitude, which ATAK treats as an absolute 0 m HAE
+
+### Deployment notes
+
+- The old `avalanche-<id>` `u-d-f` polygons never expire in ATAK and the ETL
+  cannot send a delete, so delete them manually on each device. The old
+  `avalanche-<id>-center` markers expire on their own
+
+## [1.3.1]
+
+### Changed
+
+- Every submitted feature now sets `marti_archive: false`, which CloudTAK
+  converts to `<marti archive="false"/>` so TAK Server does not archive the
+  forecasts. Requires `@tak-ps/node-cot` >= 14.57.1 in CloudTAK
+  ([dfpc-coe/node-CoT#145](https://github.com/dfpc-coe/node-CoT/pull/145));
+  earlier versions drop the `false` value
+
 ## [1.3.0]
 
 ### Changed
