@@ -16,6 +16,12 @@ All notable changes to this project will be documented in this file.
 - Regions without geometry still fall back to a Point feature, now with the
   same `avalanche-<id>` id
 
+- Resolved all `npm audit` findings via `npm audit fix` (transitive updates
+  for body-parser, fast-uri, glob, postal-mime, qs and undici, plus `eslint`
+  and `typescript-eslint`). Added an `overrides` entry forcing
+  `minimatch@^11.0.8` for `@typescript-eslint/typescript-estree`, which still
+  pins a vulnerable 10.x; remove it once `typescript-eslint` ships a fix
+
 ### Added
 
 - `@tak-ps/node-cot` as a devDependency, used by tests to check the
