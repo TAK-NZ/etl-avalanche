@@ -45,3 +45,74 @@ test('Incoming Output schema', async () => {
         assert.ok(schema.properties[key], `Output schema missing property: ${key}`);
     }
 });
+
+const { buildRegionFeature } = await import('../task.js');
+const { CoTParser } = await import('@tak-ps/node-cot');
+
+const RING = [[170, -43], [171, -43], [171, -44], [170, -44], [170, -43]];
+const STALE = '2030-01-02T03:04:05.000Z';
+
+const baseProperties = {
+    callsign: 'Avalanche Risk: Test - Moderate (2)',
+    type: 'a-f-X-i-g-a',
+    time: '2030-01-01T00:00:00.000Z',
+    start: '2030-01-01T00:00:00.000Z',
+    stale: STALE
+};
+
+test('Region feature is a single Polygon carrying center and icon', () => {
+    const feat = buildRegionFeature({
+        regionId: 7,
+        level: 2,
+        color: 'rgb(255, 244, 31)',
+        polygonCoordinates: [RING],
+        centerCoords: [170.5, -43.5],
+        baseProperties
+    });
+
+    assert.equal(feat.id, 'avalanche-7');
+    assert.equal(feat.geometry.type, 'Polygon');
+    assert.deepEqual(feat.properties.center, [170.5, -43.5]);
+    assert.ok(String(feat.properties.icon).includes('DangerLevel2'));
+    assert.equal(feat.properties.type, 'a-f-X-i-g-a');
+});
+
+test('Region feature without a polygon falls back to a Point with the same id', () => {
+    const feat = buildRegionFeature({
+        regionId: 7,
+        level: 2,
+        color: 'rgb(255, 244, 31)',
+        polygonCoordinates: null,
+        centerCoords: [170.5, -43.5],
+        baseProperties
+    });
+
+    assert.equal(feat.id, 'avalanche-7');
+    assert.deepEqual(feat.geometry, { type: 'Point', coordinates: [170.5, -43.5] });
+});
+
+test('Region feature converts to an expiring marker with a polyline shape', async () => {
+    const feat = buildRegionFeature({
+        regionId: 7,
+        level: 2,
+        color: 'rgb(255, 244, 31)',
+        polygonCoordinates: [RING],
+        centerCoords: [170.5, -43.5],
+        baseProperties
+    });
+
+    const cot = await CoTParser.from_geojson(feat as never);
+    const event = cot.raw.event;
+
+    // A u-d-f drawing would never expire in ATAK
+    assert.equal(event._attributes.type, 'a-f-X-i-g-a');
+    assert.equal(event._attributes.stale, STALE);
+    assert.equal(event.point._attributes.lon, 170.5);
+    assert.equal(event.point._attributes.lat, -43.5);
+    assert.ok(event.detail.usericon, 'icon is carried on the marker');
+
+    const polyline = event.detail.shape?.polyline;
+    assert.ok(polyline, 'detail.shape.polyline is set');
+    assert.equal(polyline._attributes?.closed, true);
+    assert.equal(polyline.vertex.length, RING.length);
+});
