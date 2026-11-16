@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0]
+
+### Changed
+
+- Each region is now submitted as a single Polygon feature (`avalanche-<id>`)
+  carrying the danger level `icon` and the marker position in
+  `properties.center`, instead of a separate polygon and `-center` point.
+  With CloudTAK running `@tak-ps/node-cot` >= 14.58.0 this becomes one
+  `a-f-X-i-g-a` marker with a `<shape><polyline>`, so ATAK removes the
+  region polygon when the forecast goes stale. Previously the polygon was
+  converted to a `u-d-f` drawing, which never expires in ATAK.
+- Regions without geometry still fall back to a Point feature, now with the
+  same `avalanche-<id>` id
+
+- Resolved all `npm audit` findings via `npm audit fix` (transitive updates
+  for body-parser, fast-uri, glob, postal-mime, qs and undici, plus `eslint`
+  and `typescript-eslint`). Added an `overrides` entry forcing
+  `minimatch@^11.0.8` for `@typescript-eslint/typescript-estree`, which still
+  pins a vulnerable 10.x; remove it once `typescript-eslint` ships a fix
+
+### Added
+
+- `@tak-ps/node-cot` as a devDependency, used by tests to check the
+  GeoJSON to CoT conversion
+
+### Deployment notes
+
+- Deploy CloudTAK with `@tak-ps/node-cot` >= 14.58.0 before releasing this
+  version. Older versions still convert the polygon to a non-expiring
+  `u-d-f` drawing, and the icon is lost
+- Existing `avalanche-<id>` `u-d-f` polygons and `avalanche-<id>-center`
+  markers may remain on ATAK devices that already received them
+
 ## [1.2.0]
 
 ### Added

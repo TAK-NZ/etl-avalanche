@@ -195,6 +195,65 @@ interface AvalancheData {
     url: string;
 }
 
+interface RegionFeature {
+    id: string;
+    type: 'Feature';
+    properties: Record<string, unknown>;
+    geometry: { type: 'Point'; coordinates: number[] } | { type: 'Polygon'; coordinates: number[][][] };
+}
+
+/**
+ * Builds the single GeoJSON feature submitted for a region.
+ *
+ * With a polygon, the feature keeps its Polygon geometry and carries the
+ * marker position in `properties.center` plus the danger level `icon`.
+ * CloudTAK (node-cot >= 14.58.0) converts a Polygon with a marker `type`
+ * (here `a-f-X-i-g-a`) into a marker CoT with a `<shape><polyline>`, which
+ * ATAK removes together with the marker once `stale` passes. Do not change
+ * `type` to a `u-*` drawing type: those never expire in ATAK.
+ *
+ * Without a polygon, falls back to a plain Point feature with the same id.
+ */
+export function buildRegionFeature(opts: {
+    regionId: number;
+    level: number;
+    color: string;
+    polygonCoordinates: number[][][] | null;
+    centerCoords: [number, number];
+    baseProperties: Record<string, unknown>;
+}): RegionFeature {
+    const { regionId, level, color, polygonCoordinates, centerCoords, baseProperties } = opts;
+    const properties: Record<string, unknown> = {
+        ...baseProperties,
+        icon: AVALANCHE_ICONS[level] || AVALANCHE_ICONS[0]
+    };
+
+    if (!polygonCoordinates) {
+        return {
+            id: `avalanche-${regionId}`,
+            type: 'Feature',
+            properties,
+            geometry: { type: 'Point', coordinates: centerCoords }
+        };
+    }
+
+    return {
+        id: `avalanche-${regionId}`,
+        type: 'Feature',
+        properties: {
+            ...properties,
+            center: centerCoords,
+            stroke: color,
+            'stroke-opacity': 0.4,
+            'stroke-width': 2,
+            'stroke-style': 'solid',
+            'fill-opacity': 0.4,
+            fill: color
+        },
+        geometry: { type: 'Polygon', coordinates: polygonCoordinates }
+    };
+}
+
 export default class Task extends ETL {
     static name = 'etl-avalanche';
     static flow = [DataFlowType.Incoming];
@@ -456,12 +515,7 @@ export default class Task extends ETL {
             const env = await this.env(Env);
             console.log('ok - Starting avalanche data scraping');
 
-            const features: Array<{
-                id: string;
-                type: 'Feature';
-                properties: Record<string, unknown>;
-                geometry: { type: 'Point'; coordinates: number[] } | { type: 'Polygon'; coordinates: number[][][] };
-            }> = [];
+            const features: RegionFeature[] = [];
 
             for (const regionId of VALID_REGIONS) {
                 const regionInfo = await this.getRegionInfo(regionId, env.Timeout);
@@ -567,52 +621,17 @@ export default class Task extends ETL {
                     }]
                 };
 
-                // Add polygon feature if geometry available
-                if (polygonCoordinates) {
-                    features.push({
-                        id: `avalanche-${regionId}`,
-                        type: 'Feature',
-                        properties: {
-                            ...baseProperties,
-                            stroke: color,
-                            'stroke-opacity': 0.4,
-                            'stroke-width': 2,
-                            'stroke-style': 'solid',
-                            'fill-opacity': 0.4,
-                            fill: color
-                        },
-                        geometry: {
-                            type: 'Polygon',
-                            coordinates: polygonCoordinates
-                        }
-                    });
-                }
-
-                // Add center point with icon
-                const centerCoords = polygonCoordinates ? 
+                const centerCoords = polygonCoordinates ?
                     this.calculatePolygonCentroid(polygonCoordinates) :
                     this.validateCoordinates(regionInfo.latitude, regionInfo.longitude);
-                    
-                features.push({
-                    id: `avalanche-${regionId}-center`,
-                    type: 'Feature',
-                    properties: {
-                        ...baseProperties,
-                        icon: AVALANCHE_ICONS[data.level] || AVALANCHE_ICONS[0],
-                        links: [{
-                            uid: `avalanche-${regionId}-center`,
-                            relation: 'r-u',
-                            mime: 'text/html',
-                            url: data.url,
-                            remarks: 'Avalanche Forecast Details'
-                        }]
-                    },
-                    geometry: {
-                        type: 'Point',
-                        coordinates: centerCoords
-                    }
-                });
-
+                features.push(buildRegionFeature({
+                    regionId,
+                    level: data.level,
+                    color,
+                    polygonCoordinates,
+                    centerCoords,
+                    baseProperties
+                }));
                 console.log(`Added avalanche data for ${regionInfo.title} (Level ${data.level}) with ${polygonCoordinates ? 'polygon' : 'point only'}`);
             }
 
