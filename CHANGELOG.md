@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1]
+
+### Changed
+
+- Every submitted feature now sets `marti_archive: false`, which CloudTAK
+  converts to `<marti archive="false"/>` so TAK Server does not archive the
+  forecasts. Requires `@tak-ps/node-cot` >= 14.57.1 in CloudTAK
+  ([dfpc-coe/node-CoT#145](https://github.com/dfpc-coe/node-CoT/pull/145));
+  earlier versions drop the `false` value
+
 ## [1.3.0]
 
 ### Changed

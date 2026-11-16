@@ -75,6 +75,7 @@ test('Region feature is a single Polygon carrying center and icon', () => {
     assert.deepEqual(feat.properties.center, [170.5, -43.5]);
     assert.ok(String(feat.properties.icon).includes('DangerLevel2'));
     assert.equal(feat.properties.type, 'a-f-X-i-g-a');
+    assert.strictEqual(feat.properties.marti_archive, false);
 });
 
 test('Region feature without a polygon falls back to a Point with the same id', () => {
@@ -89,6 +90,7 @@ test('Region feature without a polygon falls back to a Point with the same id', 
 
     assert.equal(feat.id, 'avalanche-7');
     assert.deepEqual(feat.geometry, { type: 'Point', coordinates: [170.5, -43.5] });
+    assert.strictEqual(feat.properties.marti_archive, false);
 });
 
 test('Region feature converts to an expiring marker with a polyline shape', async () => {
@@ -110,6 +112,7 @@ test('Region feature converts to an expiring marker with a polyline shape', asyn
     assert.equal(event.point._attributes.lon, 170.5);
     assert.equal(event.point._attributes.lat, -43.5);
     assert.ok(event.detail.usericon, 'icon is carried on the marker');
+    assert.strictEqual(event.detail.marti?._attributes?.archive, false);
 
     const polyline = event.detail.shape?.polyline;
     assert.ok(polyline, 'detail.shape.polyline is set');

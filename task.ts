@@ -225,7 +225,10 @@ export function buildRegionFeature(opts: {
     const { regionId, level, color, polygonCoordinates, centerCoords, baseProperties } = opts;
     const properties: Record<string, unknown> = {
         ...baseProperties,
-        icon: AVALANCHE_ICONS[level] || AVALANCHE_ICONS[0]
+        icon: AVALANCHE_ICONS[level] || AVALANCHE_ICONS[0],
+        // Emitted as <marti archive="false"> so TAK Server does not archive
+        // these periodically refreshed forecasts (needs node-cot >= 14.57.1)
+        marti_archive: false
     };
 
     if (!polygonCoordinates) {
