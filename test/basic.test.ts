@@ -49,7 +49,7 @@ test('Incoming Output schema', async () => {
 const { buildRegionFeature } = await import('../task.js');
 const { CoTParser } = await import('@tak-ps/node-cot');
 
-const RING = [[170, -43], [171, -43], [171, -44], [170, -44], [170, -43]];
+const RING = [[170, -43, 0], [171, -43, 0], [171, -44, 0], [170, -44, 0], [170, -43, 0]];
 const STALE = '2030-01-02T03:04:05.000Z';
 
 const baseProperties = {
@@ -70,7 +70,7 @@ test('Region feature is a single Polygon carrying center and icon', () => {
         baseProperties
     });
 
-    assert.equal(feat.id, 'avalanche-7');
+    assert.equal(feat.id, 'avalanche-region-7');
     assert.equal(feat.geometry.type, 'Polygon');
     assert.deepEqual(feat.properties.center, [170.5, -43.5]);
     assert.ok(String(feat.properties.icon).includes('DangerLevel2'));
@@ -88,7 +88,7 @@ test('Region feature without a polygon falls back to a Point with the same id', 
         baseProperties
     });
 
-    assert.equal(feat.id, 'avalanche-7');
+    assert.equal(feat.id, 'avalanche-region-7');
     assert.deepEqual(feat.geometry, { type: 'Point', coordinates: [170.5, -43.5] });
     assert.strictEqual(feat.properties.marti_archive, false);
 });
@@ -118,4 +118,7 @@ test('Region feature converts to an expiring marker with a polyline shape', asyn
     assert.ok(polyline, 'detail.shape.polyline is set');
     assert.equal(polyline._attributes?.closed, true);
     assert.equal(polyline.vertex.length, RING.length);
+    for (const vertex of polyline.vertex) {
+        assert.equal(vertex._attributes.hae, undefined, 'vertices carry no altitude');
+    }
 });

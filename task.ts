@@ -223,6 +223,10 @@ export function buildRegionFeature(opts: {
     baseProperties: Record<string, unknown>;
 }): RegionFeature {
     const { regionId, level, color, polygonCoordinates, centerCoords, baseProperties } = opts;
+    // New UID, not `avalanche-<id>`: earlier versions sent that UID as a
+    // `u-d-f` drawing, and ATAK ignores (ImportResult.IGNORE) a marker update
+    // for a UID it already holds as a non-Marker item.
+    const id = `avalanche-region-${regionId}`;
     const properties: Record<string, unknown> = {
         ...baseProperties,
         icon: AVALANCHE_ICONS[level] || AVALANCHE_ICONS[0],
@@ -233,7 +237,7 @@ export function buildRegionFeature(opts: {
 
     if (!polygonCoordinates) {
         return {
-            id: `avalanche-${regionId}`,
+            id,
             type: 'Feature',
             properties,
             geometry: { type: 'Point', coordinates: centerCoords }
@@ -241,7 +245,7 @@ export function buildRegionFeature(opts: {
     }
 
     return {
-        id: `avalanche-${regionId}`,
+        id,
         type: 'Feature',
         properties: {
             ...properties,
@@ -253,7 +257,12 @@ export function buildRegionFeature(opts: {
             'fill-opacity': 0.4,
             fill: color
         },
-        geometry: { type: 'Polygon', coordinates: polygonCoordinates }
+        // Lon/lat only: a 0 altitude would be sent as an absolute 0 m HAE
+        // vertex, whereas ATAK clamps vertices without altitude to terrain
+        geometry: {
+            type: 'Polygon',
+            coordinates: polygonCoordinates.map((ring) => ring.map(([lon, lat]) => [lon, lat]))
+        }
     };
 }
 
