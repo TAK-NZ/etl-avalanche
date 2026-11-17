@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3]
+
+### Changed
+
+- Each region is again submitted as two features, as in 1.2.0: the polygon
+  marker `avalanche-<id>` and the separate icon point `avalanche-<id>-center`.
+  This reverts the single-feature layout of 1.3.0 and the `avalanche-region-<id>`
+  UID of 1.3.2. A polygon marker that carries a valid `usericon` makes ATAK move
+  it to another map group, and ATAK deletes the polyline it owns when that
+  happens, so the danger level icon has to be a separate point
+- The polygon marker is now invisible in ATAK (`marker-color` with
+  `marker-opacity: 0`, written as `<color argb>` with alpha 0). Without an icon
+  ATAK draws an unknown-type "?" on it. It is not tappable, and the polygon
+  itself never is, so the icon point is the only thing to select
+- The polygon marker keeps `type: a-f-X-i-g-a`, so ATAK removes the polygon
+  together with the marker when `stale` passes. Polygon vertices stay lon/lat
+  only (from 1.3.2)
+- `marti_archive: false` (from 1.3.1) applies to both features
+
+### Deployment notes
+
+- Needs CloudTAK with `@tak-ps/node-cot` >= 14.58.0
+- Markers `avalanche-region-<id>` sent by 1.3.2 expire on their own
+- `avalanche-<id>-center` and `avalanche-<id>` are the UIDs ATAK holds from 1.2.0
+
 ## [1.3.2]
 
 ### Changed

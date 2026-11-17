@@ -203,67 +203,85 @@ interface RegionFeature {
 }
 
 /**
- * Builds the single GeoJSON feature submitted for a region.
+ * Builds the GeoJSON features submitted for a region: a polygon marker and a
+ * separate icon point.
  *
- * With a polygon, the feature keeps its Polygon geometry and carries the
- * marker position in `properties.center` plus the danger level `icon`.
- * CloudTAK (node-cot >= 14.58.0) converts a Polygon with a marker `type`
- * (here `a-f-X-i-g-a`) into a marker CoT with a `<shape><polyline>`, which
- * ATAK removes together with the marker once `stale` passes. Do not change
- * `type` to a `u-*` drawing type: those never expire in ATAK.
+ * Polygon (`avalanche-<id>`): CloudTAK (node-cot >= 14.58.0) converts a
+ * Polygon with a marker `type` (here `a-f-X-i-g-a`) into a marker CoT with a
+ * `<shape><polyline>`, which ATAK removes together with the marker once
+ * `stale` passes. Do not use a `u-*` drawing type: those never expire in ATAK.
+ * The marker only exists to own the polygon, so it is made invisible with
+ * `marker-opacity: 0` (written as `<color argb>` with alpha 0). Do NOT give it
+ * an `icon`: a valid `usericon` makes ATAK move the marker to another map
+ * group, which deletes the polygon it owns. ATAK shows an unknown-type "?"
+ * icon for a marker without one, hence the transparency.
  *
- * Without a polygon, falls back to a plain Point feature with the same id.
+ * Icon point (`avalanche-<id>-center`): carries the danger level icon, since
+ * the polygon marker cannot.
+ *
+ * Without a polygon, only the icon point is returned.
  */
-export function buildRegionFeature(opts: {
+export function buildRegionFeatures(opts: {
     regionId: number;
     level: number;
     color: string;
+    url: string;
     polygonCoordinates: number[][][] | null;
     centerCoords: [number, number];
     baseProperties: Record<string, unknown>;
-}): RegionFeature {
-    const { regionId, level, color, polygonCoordinates, centerCoords, baseProperties } = opts;
-    // New UID, not `avalanche-<id>`: earlier versions sent that UID as a
-    // `u-d-f` drawing, and ATAK ignores (ImportResult.IGNORE) a marker update
-    // for a UID it already holds as a non-Marker item.
-    const id = `avalanche-region-${regionId}`;
-    const properties: Record<string, unknown> = {
-        ...baseProperties,
-        icon: AVALANCHE_ICONS[level] || AVALANCHE_ICONS[0],
-        // Emitted as <marti archive="false"> so TAK Server does not archive
-        // these periodically refreshed forecasts (needs node-cot >= 14.57.1)
-        marti_archive: false
-    };
+}): RegionFeature[] {
+    const { regionId, level, color, url, polygonCoordinates, centerCoords, baseProperties } = opts;
 
-    if (!polygonCoordinates) {
-        return {
-            id,
+    // Emitted as <marti archive="false"> so TAK Server does not archive these
+    // periodically refreshed forecasts (needs node-cot >= 14.57.1)
+    const common = { marti_archive: false };
+
+    const features: RegionFeature[] = [];
+
+    if (polygonCoordinates) {
+        features.push({
+            id: `avalanche-${regionId}`,
             type: 'Feature',
-            properties,
-            geometry: { type: 'Point', coordinates: centerCoords }
-        };
+            properties: {
+                ...baseProperties,
+                ...common,
+                'marker-color': '#808080',
+                'marker-opacity': 0,
+                stroke: color,
+                'stroke-opacity': 0.4,
+                'stroke-width': 2,
+                'stroke-style': 'solid',
+                'fill-opacity': 0.4,
+                fill: color
+            },
+            // Lon/lat only: a 0 altitude would be sent as an absolute 0 m HAE
+            // vertex, whereas ATAK clamps vertices without altitude to terrain
+            geometry: {
+                type: 'Polygon',
+                coordinates: polygonCoordinates.map((ring) => ring.map(([lon, lat]) => [lon, lat]))
+            }
+        });
     }
 
-    return {
-        id,
+    features.push({
+        id: `avalanche-${regionId}-center`,
         type: 'Feature',
         properties: {
-            ...properties,
-            center: centerCoords,
-            stroke: color,
-            'stroke-opacity': 0.4,
-            'stroke-width': 2,
-            'stroke-style': 'solid',
-            'fill-opacity': 0.4,
-            fill: color
+            ...baseProperties,
+            ...common,
+            icon: AVALANCHE_ICONS[level] || AVALANCHE_ICONS[0],
+            links: [{
+                uid: `avalanche-${regionId}-center`,
+                relation: 'r-u',
+                mime: 'text/html',
+                url,
+                remarks: 'Avalanche Forecast Details'
+            }]
         },
-        // Lon/lat only: a 0 altitude would be sent as an absolute 0 m HAE
-        // vertex, whereas ATAK clamps vertices without altitude to terrain
-        geometry: {
-            type: 'Polygon',
-            coordinates: polygonCoordinates.map((ring) => ring.map(([lon, lat]) => [lon, lat]))
-        }
-    };
+        geometry: { type: 'Point', coordinates: centerCoords }
+    });
+
+    return features;
 }
 
 export default class Task extends ETL {
@@ -636,10 +654,11 @@ export default class Task extends ETL {
                 const centerCoords = polygonCoordinates ?
                     this.calculatePolygonCentroid(polygonCoordinates) :
                     this.validateCoordinates(regionInfo.latitude, regionInfo.longitude);
-                features.push(buildRegionFeature({
+                features.push(...buildRegionFeatures({
                     regionId,
                     level: data.level,
                     color,
+                    url: data.url,
                     polygonCoordinates,
                     centerCoords,
                     baseProperties
